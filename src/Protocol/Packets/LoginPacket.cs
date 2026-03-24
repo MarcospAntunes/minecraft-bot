@@ -4,18 +4,17 @@ using Core;
 
 namespace Protocol.Packets
 {
-  public class LoginPacket
+  public static class LoginPacket
   {
-    public static void SendLoginStart(BinaryWriter writer, string username, int CompressionThreshold, Bot bot)
+    public static void SendLoginStart(BinaryWriter writer, string username, int compression, Bot bot)
     {
-      MemoryStream ms = new MemoryStream();
-      BinaryWriter packet = new BinaryWriter(ms);
+      using var ms = new MemoryStream();
+      using var packet = new BinaryWriter(ms);
 
       VarInt.WriteVarInt(packet, 0x00);
       McString.WriteString(packet, username);
 
-      PacketWriter.SendPacket(writer, ms.ToArray(), CompressionThreshold);
-
+      PacketWriter.SendPacket(writer, ms.ToArray(), compression);
       bot.SetState(State.Login);
     }
   }

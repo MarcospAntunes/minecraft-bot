@@ -3,29 +3,25 @@ using Utils;
 
 namespace Network
 {
-  public class PacketWriter
+  public static class PacketWriter
   {
     public static void SendPacket(BinaryWriter writer, byte[] data, int compressionThreshold)
     {
-      using MemoryStream packetMs = new MemoryStream();
-      using BinaryWriter packetWriter = new BinaryWriter(packetMs);
+      using var packetMs = new MemoryStream();
+      using var packetWriter = new BinaryWriter(packetMs);
 
       if (compressionThreshold >= 0)
       {
         if (data.Length >= compressionThreshold)
         {
-          using MemoryStream compressed = new MemoryStream();
-
-          using (var z = new ZLibStream(compressed, CompressionLevel.Fastest, true))
-          {
+          using var compressedStream = new MemoryStream();
+          using (var z = new ZLibStream(compressedStream, CompressionLevel.Fastest, true))
             z.Write(data, 0, data.Length);
-          }
 
-          byte[] comp = compressed.ToArray();
-
-          VarInt.WriteVarInt(packetWriter, VarInt.GetVarIntSize(data.Length) + comp.Length);
+          byte[] compressed = compressedStream.ToArray();
+          VarInt.WriteVarInt(packetWriter, VarInt.GetVarIntSize(data.Length) + compressed.Length);
           VarInt.WriteVarInt(packetWriter, data.Length);
-          packetWriter.Write(comp);
+          packetWriter.Write(compressed);
         }
         else
         {

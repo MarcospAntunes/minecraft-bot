@@ -3,15 +3,15 @@ using Network;
 
 namespace Protocol.Packets
 {
-  public class HandshakePacket
+  public static class HandshakePacket
   {
-    public static void SendHandshake(BinaryWriter writer, string server, int port, int CompressionThreshold)
+    public static void SendHandshake(BinaryWriter writer, string server, int port, int compression)
     {
-      MemoryStream ms = new MemoryStream();
-      BinaryWriter packet = new BinaryWriter(ms);
+      using var ms = new MemoryStream();
+      using var packet = new BinaryWriter(ms);
 
-      VarInt.WriteVarInt(packet, 0x00);
-      VarInt.WriteVarInt(packet, 47); // 1.16.5
+      VarInt.WriteVarInt(packet, 0x00); // ID Handshake
+      VarInt.WriteVarInt(packet, 47);   // Protocol 1.8/1.16.5
 
       McString.WriteString(packet, server);
 
@@ -19,9 +19,9 @@ namespace Protocol.Packets
       packet.Write((byte)(portValue >> 8));
       packet.Write((byte)(portValue & 0xFF));
 
-      VarInt.WriteVarInt(packet, 2);
+      VarInt.WriteVarInt(packet, 2); // Next state = Login
 
-      PacketWriter.SendPacket(writer, ms.ToArray(), CompressionThreshold);
+      PacketWriter.SendPacket(writer, ms.ToArray(), compression);
     }
   }
 }

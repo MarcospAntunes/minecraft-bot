@@ -2,25 +2,30 @@ using System.Net.Sockets;
 
 namespace Network
 {
-  class Connection
+  public class Connection
   {
     private BinaryReader reader;
     private BinaryWriter writer;
 
+    /// <summary>
+    /// Conecta no servidor e retorna o BinaryWriter e BinaryReader
+    /// </summary>
     public (BinaryWriter, BinaryReader) Connect(string server, int port)
     {
-      TcpClient client = new TcpClient();
+      var client = new TcpClient();
       client.Connect(server, port);
 
-      NetworkStream stream = client.GetStream();
+      var stream = client.GetStream();
       writer = new BinaryWriter(stream);
       reader = new BinaryReader(stream);
 
-      Console.WriteLine("Conectado!");
-
+      Console.WriteLine(">>> [CONEXÃO] Conectado ao servidor: " + server + ":" + port);
       return (writer, reader);
     }
 
+    /// <summary>
+    /// Lê uma quantidade exata de bytes do stream
+    /// </summary>
     public static byte[] ReadFully(BinaryReader reader, int length)
     {
       byte[] buffer = new byte[length];
@@ -29,9 +34,8 @@ namespace Network
       while (offset < length)
       {
         int read = reader.BaseStream.Read(buffer, offset, length - offset);
-
         if (read == 0)
-          throw new EndOfStreamException("Conexão fechada");
+          throw new EndOfStreamException("Conexão fechada inesperadamente.");
 
         offset += read;
       }
