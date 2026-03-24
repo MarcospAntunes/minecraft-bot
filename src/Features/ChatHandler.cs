@@ -1,72 +1,65 @@
 using System.Text.RegularExpressions;
-using System.Diagnostics;
 using Core;
-using Protocol.Packets;
-
 namespace Features
 {
   public class ChatHandler
   {
-    private CommandHandler commandHandler = new CommandHandler();
-
+    private readonly CommandHandler _commandHandler = new();
+    // Regex pré-compiladas (melhor performance) 
+    private static readonly Regex ColorRegex = new(@"§[0-9a-fk-or]", RegexOptions.Compiled);
+    private static readonly Regex TextRegex = new(@"text:([^,\]]+)", RegexOptions.Compiled);
     public void ListenChat(int packetId, BinaryReader reader, Bot bot, int compression, BinaryWriter writer, string rawJson)
     {
       if (packetId != 0x02) return;
-
-      string cleanChat = Regex.Replace(rawJson, "§[0-9a-fk-or]", "")
-                              .Replace("\"", "").Replace("{", "").Replace("}", "");
-
-      if (cleanChat.Contains(bot.playerName))
-        Console.WriteLine($">>> [CHAT RAW] {cleanChat}");
-
-      // Auto login
-      if (cleanChat.Contains("/login"))
+      string cleanChat = CleanChat(rawJson);
+      var parsed = ParseChat(cleanChat);
+      if (parsed != null)
       {
-        string senha = "Marquinhos_1212";
-        Console.WriteLine(">>> [BOT] Detectei login, enviando senha...");
-        PlayPacket.SendChatMessage(writer, $"/login {senha}", compression);
+        Console.WriteLine($">>> [CHAT] {parsed.Value.sender}: {parsed.Value.message}");
+
+        _commandHandler.HandleAutoLogin(cleanChat, writer, compression);
+        _commandHandler.HandleLoginSuccess(cleanChat, bot);
+        _commandHandler.HandleAdminCommands(cleanChat, bot, writer, compression);
       }
 
-      if (cleanChat.Contains("logou com sucesso") || cleanChat.Contains("bem-vindo"))
+
+    }
+    private string CleanChat(string rawJson)
+    {
+      Regex ChatMessageRegex = new(@"text:([^:\]]+)\]\s*,?\s*text::\s*\]\s*,?\s*text:([^,\]]+)", RegexOptions.Compiled);
+      string result = ColorRegex.Replace(rawJson, "").Replace("\"", "").Replace("{", "").Replace("}", "");
+      result = ChatMessageRegex.Replace(result, "");
+
+      return result;
+    }
+
+    private (string sender, string message)? ParseChat(string chat)
+    {
+      var matches = TextRegex.Matches(chat);
+
+      var parts = matches
+          .Select(m => m.Groups[1].Value.Trim())
+          .Where(s => !string.IsNullOrWhiteSpace(s))
+          .ToList();
+
+      if (parts.Count < 2) return null;
+
+      for (int i = 0; i < parts.Count - 1; i++)
       {
-        if (!bot.CompassUsed)
+        if (parts[i + 1] == ":")
         {
-          bot.CompassUsed = true;
-          Console.WriteLine(">>> [CHAT] Login confirmado! Forçando entrada no Lobby Principal...");
-          bot.CanMove = true;
+          string sender = parts[i];
+
+          // 🔥 Aqui está a correção: pega TUDO depois dos dois pontos
+          var messageParts = parts.Skip(i + 2);
+
+          string message = string.Join(" ", messageParts);
+
+          return (sender, message);
         }
       }
 
-      // Comandos privados
-      if (cleanChat.Contains(bot.playerName))
-      {
-        if (cleanChat.Contains("/tpa"))
-          commandHandler.ExecuteCommand($"/tpa {bot.playerName}", bot, compression, writer);
-        else if (cleanChat.Contains("/exit"))
-          Environment.Exit(0);
-        else if (cleanChat.Contains("/pw") && cleanChat.Contains("afk"))
-        {
-          string regex = @"text:([^,\]]+)\](?!.*\])";
-          Match match = Regex.Match(cleanChat, regex);
-
-          if (match.Success)
-          {
-            string location = match.Groups[1].Value.Trim();
-            commandHandler.ExecuteCommand($"/pw {location}", bot, compression, writer);
-            Console.WriteLine("Palavra capturada: " + location);
-          }
-          else
-          {
-            commandHandler.ExecuteCommand($"/tell {bot.playerName} não entendi.", bot, compression, writer);
-          }
-        }
-        else if (cleanChat.Contains("/restart"))
-        {
-          string path = Environment.ProcessPath;
-          Process.Start(path);
-          Environment.Exit(0);
-        }
-      }
+      return null;
     }
   }
 }
