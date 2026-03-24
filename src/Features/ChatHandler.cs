@@ -21,8 +21,12 @@ namespace Features
         _commandHandler.HandleLoginSuccess(cleanChat, bot);
         _commandHandler.HandleAdminCommands(cleanChat, bot, writer, compression);
       }
-
-
+      else
+      {
+        Console.WriteLine($">>> [CHAT] {cleanChat}");
+        _commandHandler.HandleAutoLogin(cleanChat, writer, compression);
+        _commandHandler.HandleLoginSuccess(cleanChat, bot);
+      }
     }
     private string CleanChat(string rawJson)
     {

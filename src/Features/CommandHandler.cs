@@ -19,16 +19,27 @@ namespace Features
 
     public void HandleAutoLogin(string chat, BinaryWriter writer, int compression)
     {
-      if (!chat.Contains("/login")) return;
+      // 🔥 Registro primeiro
+      if (chat.Contains("/register"))
+      {
+        Console.WriteLine(">>> [BOT] Detectei pedido de registro, enviando senha...");
+        PlayPacket.SendChatMessage(writer, $"/register {Senha} {Senha}", compression);
+        return;
+      }
 
-      Console.WriteLine(">>> [BOT] Detectei login, enviando senha...");
-      PlayPacket.SendChatMessage(writer, $"/login {Senha}", compression);
+      // 🔥 Login depois
+      if (chat.Contains("/login"))
+      {
+        Console.WriteLine(">>> [BOT] Detectei login, enviando senha...");
+        PlayPacket.SendChatMessage(writer, $"/login {Senha}", compression);
+      }
     }
+    
     public void HandleLoginSuccess(string chat, Bot bot)
     {
       if (!(chat.Contains("logou com sucesso") || chat.Contains("bem-vindo"))) return;
       if (bot.CompassUsed) return;
-      
+
       bot.CompassUsed = true;
       bot.CanMove = true;
       Console.WriteLine(">>> [CHAT] Login confirmado! Entrada liberada.");
