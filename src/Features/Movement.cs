@@ -1,5 +1,6 @@
 using Utils;
 using Network;
+using Core;
 
 namespace Features
 {
@@ -57,6 +58,31 @@ namespace Features
       VarInt.WriteVarInt(packet, teleportId);
 
       PacketWriter.SendPacket(writer, ms.ToArray(), compression);
+    }
+
+    public static async Task WalkForward(Bot bot, int compression, double distance = 3.0)
+    {
+      double step = 0.3;
+      int steps = (int)(distance / step);
+
+      for (int i = 0; i < steps; i++)
+      {
+        // 🔥 movimento baseado na direção (yaw)
+        double rad = bot.Yaw * Math.PI / 180;
+
+        bot.PosX -= Math.Sin(rad) * step;
+        bot.PosZ += Math.Cos(rad) * step;
+
+        SendSmallMovement(
+          bot.GetWriter(),
+          bot.PosX,
+          bot.PosY,
+          bot.PosZ,
+          compression
+        );
+
+        await Task.Delay(100);
+      }
     }
   }
 }

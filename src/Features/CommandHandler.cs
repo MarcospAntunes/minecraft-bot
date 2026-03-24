@@ -8,7 +8,7 @@ namespace Features
   {
     private static readonly Regex LocationRegex = new(@"text:([^,\]]+)\](?!.*\])", RegexOptions.Compiled);
     private const string Senha = "Marquinhos_1212";  // ideal: mover pra config 
-    private void ExecuteCommand(string command, int compression, BinaryWriter writer)
+    private void ExecuteCommand(string command, int compression, BinaryWriter writer, Bot bot)
     {
       Task.Run(async () =>
       {
@@ -17,13 +17,14 @@ namespace Features
       });
     }
 
-    public void HandleAutoLogin(string chat, BinaryWriter writer, int compression)
+    public void HandleAutoLogin(string chat, BinaryWriter writer, int compression, Bot bot)
     {
       // 🔥 Registro primeiro
       if (chat.Contains("/register"))
       {
         Console.WriteLine(">>> [BOT] Detectei pedido de registro, enviando senha...");
         PlayPacket.SendChatMessage(writer, $"/register {Senha} {Senha}", compression);
+        bot.stopTryClickButton = false;
         return;
       }
 
@@ -32,25 +33,52 @@ namespace Features
       {
         Console.WriteLine(">>> [BOT] Detectei login, enviando senha...");
         PlayPacket.SendChatMessage(writer, $"/login {Senha}", compression);
+
+        bot.stopTryClickButton = false;
       }
     }
-    
+
     public void HandleLoginSuccess(string chat, Bot bot)
     {
-      if (!(chat.Contains("logou com sucesso") || chat.Contains("bem-vindo"))) return;
-      if (bot.CompassUsed) return;
+      if (!(chat.Contains("logou com sucesso") || chat.Contains("bem-vindo")))
+        return;
 
-      bot.CompassUsed = true;
+      // 🔒 trava REAL (sem race condition)
+      if (bot.LoginHandled)
+        return;
+
+      bot.LoginHandled = true;
+
       bot.CanMove = true;
+
       Console.WriteLine(">>> [CHAT] Login confirmado! Entrada liberada.");
+
+      Task.Run(async () =>
+      {
+        await Task.Delay(4000); // 🔥 deixa o servidor te dar inventário
+
+        Console.WriteLine(">>> [BOT] Selecionando bússola...");
+        InventoryActions.SendHeldItemChange(bot.GetWriter(), 0, bot.CompressionThreshold);
+
+        await Task.Delay(500);
+
+        Console.WriteLine(">>> [BOT] Usando bússola...");
+        InventoryActions.SendRightClick(bot.GetWriter(), bot.CompressionThreshold);
+
+        await Task.Delay(2000);
+
+        Console.WriteLine(">>> [BOT] Andando pra frente...");
+        //await Movement.WalkForward(bot, bot.CompressionThreshold, 2.0);
+      });
     }
+
     public void HandleAdminCommands(string chat, Bot bot, BinaryWriter writer, int compression)
     {
       if (!chat.Contains(bot.playerName)) return;
 
       if (chat.Contains("/tpa"))
       {
-        ExecuteCommand($"/tpa {bot.playerName}", compression, writer);
+        ExecuteCommand($"/tpa {bot.playerName}", compression, writer, bot);
         return;
       }
 
@@ -69,6 +97,12 @@ namespace Features
       {
         HandlePwCommand(chat, bot, writer, compression);
       }
+
+      if (chat.Contains("/lobby"))
+      {
+        ExecuteCommand($"/lobby", compression, writer, bot);
+        bot.stopTryClickButton = false;
+      }
     }
     public void HandlePwCommand(string chat, Bot bot, BinaryWriter writer, int compression)
     {
@@ -76,12 +110,12 @@ namespace Features
       if (match.Success)
       {
         string location = match.Groups[1].Value.Trim();
-        ExecuteCommand($"/pw {location}", compression, writer);
+        ExecuteCommand($"/pw {location}", compression, writer, bot);
         Console.WriteLine($">>> [BOT] Palavra capturada: {location}");
       }
       else
       {
-        ExecuteCommand($"/tell {bot.playerName} não entendi.", compression, writer);
+        ExecuteCommand($"/tell {bot.playerName} não entendi.", compression, writer, bot);
       }
     }
     public void RestartBot()

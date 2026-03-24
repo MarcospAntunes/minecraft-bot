@@ -8,24 +8,28 @@ namespace Features
     // Regex pré-compiladas (melhor performance) 
     private static readonly Regex ColorRegex = new(@"§[0-9a-fk-or]", RegexOptions.Compiled);
     private static readonly Regex TextRegex = new(@"text:([^,\]]+)", RegexOptions.Compiled);
-    public void ListenChat(int packetId, BinaryReader reader, Bot bot, int compression, BinaryWriter writer, string rawJson)
+    public string ListenChat(int packetId, BinaryReader reader, Bot bot, int compression, BinaryWriter writer, string rawJson)
     {
-      if (packetId != 0x02) return;
+      if (packetId != 0x02) return "";
       string cleanChat = CleanChat(rawJson);
       var parsed = ParseChat(cleanChat);
       if (parsed != null)
       {
         Console.WriteLine($">>> [CHAT] {parsed.Value.sender}: {parsed.Value.message}");
 
-        _commandHandler.HandleAutoLogin(cleanChat, writer, compression);
+        _commandHandler.HandleAutoLogin(cleanChat, writer, compression, bot);
         _commandHandler.HandleLoginSuccess(cleanChat, bot);
         _commandHandler.HandleAdminCommands(cleanChat, bot, writer, compression);
+
+        return parsed.Value.message;
       }
       else
       {
         Console.WriteLine($">>> [CHAT] {cleanChat}");
-        _commandHandler.HandleAutoLogin(cleanChat, writer, compression);
+        _commandHandler.HandleAutoLogin(cleanChat, writer, compression, bot);
         _commandHandler.HandleLoginSuccess(cleanChat, bot);
+
+        return cleanChat;
       }
     }
     private string CleanChat(string rawJson)

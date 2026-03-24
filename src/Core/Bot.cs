@@ -14,13 +14,16 @@ namespace Core
 
     // Estado
     private State state = State.Handshake;
+    public bool MenuHandled = false;
+    public bool LoginHandled = false;
 
     public int CompressionThreshold = -1;
     public bool Logged = false;
     public bool CanMove = false;
+    public bool stopTryClickButton = false;
 
     // Posição
-    public double PosX, PosY, PosZ;
+    public double PosX, PosY, PosZ, Yaw, Pitch;
 
     // Dados
     private string username;
@@ -32,6 +35,7 @@ namespace Core
     public int JoinCount = 0;
 
     private PacketHandler handler;
+    
 
     public Bot(string username, string server, int port, string playerName)
     {
