@@ -1,4 +1,3 @@
-
 using Utils;
 using Protocol.Packets;
 using Network;
@@ -15,21 +14,13 @@ namespace Core
 
     // Estado
     private State state = State.Handshake;
-    public byte CurrentWindowId;
 
     public int CompressionThreshold = -1;
     public bool Logged = false;
-    public bool LoginSent = false;
     public bool CanMove = false;
 
     // Posição
     public double PosX, PosY, PosZ;
-
-    // Controle de tempo
-    private DateTime lastMove = DateTime.Now;
-    private DateTime lastLoginAttempt = DateTime.MinValue;
-
-    private Random rnd = new Random();
 
     // Dados
     private string username;
@@ -90,6 +81,7 @@ namespace Core
       }
     }
 
+    // 🚀 Apenas métodos necessários
     public void SetState(State newState) => state = newState;
     public BinaryWriter GetWriter() => writer;
     public BinaryReader GetReader() => reader;
