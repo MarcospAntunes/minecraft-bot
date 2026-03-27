@@ -13,18 +13,18 @@ namespace Features
 
       VarInt.WriteVarInt(packet, 0x08); // Player Block Placement (1.8)
 
-      // 🔥 POSIÇÃO (-1, -1, -1)
+      // POSIÇÃO (-1, -1, -1)
       packet.Write((int)-1); // X
       packet.Write((byte)255); // Y (unsigned byte)
       packet.Write((int)-1); // Z
 
-      // 🔥 FACE
+      // FACE
       packet.Write((byte)255);
 
-      // 🔥 HELD ITEM (precisa ser presente!)
+      // HELD ITEM (precisa ser presente!)
       packet.Write((short)-1); // -1 = sem item (funciona pra bússola em muitos servidores)
 
-      // 🔥 CURSOR
+      // CURSOR
       packet.Write((byte)0);
       packet.Write((byte)0);
       packet.Write((byte)0);

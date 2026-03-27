@@ -67,7 +67,6 @@ namespace Features
 
       for (int i = 0; i < steps; i++)
       {
-        // 🔥 movimento baseado na direção (yaw)
         double rad = bot.Yaw * Math.PI / 180;
 
         bot.PosX -= Math.Sin(rad) * step;

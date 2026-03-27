@@ -2,18 +2,27 @@ using Protocol.Packets;
 using Core;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using Models;
 namespace Features
 {
   public class CommandHandler
   {
-    private static readonly Regex LocationRegex = new(@"text:([^,\]]+)\](?!.*\])", RegexOptions.Compiled);
-    private const string Senha = "Marquinhos_1212";  // ideal: mover pra config 
+    private static readonly Regex RawTextRegex = new(@"text:([^,\]]+)(?!.*text:)", RegexOptions.Compiled);
+    private static readonly Regex PwCommandRegex = new(@"/pw\s+(\S+)", RegexOptions.Compiled);
+    private readonly LogService _logService;
+
+    public CommandHandler(LogService logService)
+    {
+      _logService = logService;
+    }
+
     private void ExecuteCommand(string command, int compression, BinaryWriter writer, Bot bot)
     {
       Task.Run(async () =>
       {
         await Task.Delay(new Random().Next(500, 1500)); // Delay humano aleatório 
-        PlayPacket.SendChatMessage(writer, command, compression); Console.WriteLine($">>> [COMMAND] Comando enviado: '{command}'");
+        PlayPacket.SendChatMessage(writer, command, compression);
+        _ = _logService.AddMessage(new Log { Message = $">>> [COMMAND] Comando enviado: '{command}'" });
       });
     }
 
@@ -22,8 +31,9 @@ namespace Features
       // 🔥 Registro primeiro
       if (chat.Contains("/register"))
       {
-        Console.WriteLine(">>> [BOT] Detectei pedido de registro, enviando senha...");
-        PlayPacket.SendChatMessage(writer, $"/register {Senha} {Senha}", compression);
+        _ = _logService.AddMessage(new Log { Message = ">>> [BOT] Detectei pedido de registro, enviando senha..." });
+
+        PlayPacket.SendChatMessage(writer, $"/register {bot.GetPassword()} {bot.GetPassword()}", compression);
         bot.stopTryClickButton = false;
         return;
       }
@@ -31,8 +41,8 @@ namespace Features
       // 🔥 Login depois
       if (chat.Contains("/login"))
       {
-        Console.WriteLine(">>> [BOT] Detectei login, enviando senha...");
-        PlayPacket.SendChatMessage(writer, $"/login {Senha}", compression);
+        _ = _logService.AddMessage(new Log { Message = ">>> [BOT] Detectei login, enviando senha..." });
+        PlayPacket.SendChatMessage(writer, $"/login {bot.GetPassword()}", compression);
 
         bot.stopTryClickButton = false;
       }
@@ -43,7 +53,7 @@ namespace Features
       if (!(chat.Contains("logou com sucesso") || chat.Contains("bem-vindo")))
         return;
 
-      // 🔒 trava REAL (sem race condition)
+      // trava REAL (sem race condition)
       if (bot.LoginHandled)
         return;
 
@@ -51,23 +61,24 @@ namespace Features
 
       bot.CanMove = true;
 
-      Console.WriteLine(">>> [CHAT] Login confirmado! Entrada liberada.");
+      _ = _logService.AddMessage(new Log { Message = ">>> [CHAT] Login confirmado! Entrada liberada." });
 
-      Task.Run(async () =>
+      _ = Task.Run(async () =>
       {
-        await Task.Delay(4000); // 🔥 deixa o servidor te dar inventário
+        await Task.Delay(4000); // deixa o servidor te dar inventário
 
-        Console.WriteLine(">>> [BOT] Selecionando bússola...");
+        _ = _logService.AddMessage(new Log { Message = ">>> [BOT] Selecionando bússola..." });
+
         InventoryActions.SendHeldItemChange(bot.GetWriter(), 0, bot.CompressionThreshold);
 
         await Task.Delay(500);
 
-        Console.WriteLine(">>> [BOT] Usando bússola...");
+        _ = _logService.AddMessage(new Log { Message = ">>> [BOT] Usando bússola..." });
         InventoryActions.SendRightClick(bot.GetWriter(), bot.CompressionThreshold);
 
         await Task.Delay(2000);
 
-        Console.WriteLine(">>> [BOT] Andando pra frente...");
+        //_ = _logService.AddMessage(new Log {Message = ">>> [BOT] Andando para frente..."});
         //await Movement.WalkForward(bot, bot.CompressionThreshold, 2.0);
       });
     }
@@ -75,7 +86,6 @@ namespace Features
     public void HandleAdminCommands(string chat, Bot bot, BinaryWriter writer, int compression)
     {
       if (!chat.Contains(bot.playerName)) return;
-
       if (chat.Contains("/tpa"))
       {
         ExecuteCommand($"/tpa {bot.playerName}", compression, writer, bot);
@@ -106,12 +116,32 @@ namespace Features
     }
     public void HandlePwCommand(string chat, Bot bot, BinaryWriter writer, int compression)
     {
-      var match = LocationRegex.Match(chat);
-      if (match.Success)
+      string? location = null;
+
+      // 🔹 Caso 1: mensagem RAW
+      if (chat.Contains("text:"))
       {
-        string location = match.Groups[1].Value.Trim();
+        var match = RawTextRegex.Match(chat);
+        if (match.Success)
+          location = match.Groups[1].Value.Trim();
+      }
+      // 🔹 Caso 2: mensagem normal
+      else if (chat.Contains("/pw"))
+      {
+        var match = PwCommandRegex.Match(chat);
+        if (match.Success)
+          location = match.Groups[1].Value.Trim();
+      }
+
+      // 🔹 Execução final
+      if (!string.IsNullOrWhiteSpace(location))
+      {
         ExecuteCommand($"/pw {location}", compression, writer, bot);
-        Console.WriteLine($">>> [BOT] Palavra capturada: {location}");
+
+        _ = _logService.AddMessage(new Log
+        {
+          Message = $">>> [BOT] Palavra capturada: {location}"
+        });
       }
       else
       {

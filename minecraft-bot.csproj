@@ -10,6 +10,9 @@
 
   <ItemGroup>
     <PackageReference Include="McProtoNet" Version="1.7.3" />
+    <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="9.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
+    <PackageReference Include="NSwag.AspNetCore" Version="14.6.3" />
   </ItemGroup>
 
 </Project>

@@ -1,11 +1,13 @@
 using System.Net.Sockets;
+using Models;
 
 namespace Network
 {
-  public class Connection
+  public class Connection(LogService logService)
   {
     private BinaryReader reader;
     private BinaryWriter writer;
+    private readonly LogService _logService = logService;
 
     /// <summary>
     /// Conecta no servidor e retorna o BinaryWriter e BinaryReader
@@ -19,7 +21,7 @@ namespace Network
       writer = new BinaryWriter(stream);
       reader = new BinaryReader(stream);
 
-      Console.WriteLine(">>> [CONEXÃO] Conectado ao servidor: " + server + ":" + port);
+      _ = _logService.AddMessage(new Log {Message = ">>> [CONEXÃO] Conectado ao servidor: " + server + ":" + port});
       return (writer, reader);
     }
 

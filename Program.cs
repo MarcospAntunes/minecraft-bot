@@ -1,24 +1,53 @@
-﻿using System;
-using Core;
+﻿using Data;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Routes;
 
 class Program
 {
   static void Main()
   {
-    Console.WriteLine("Escolha o nick do bot: ");
-    string username = Console.ReadLine().Trim();
+    WebApplicationBuilder builder = WebApplication.CreateBuilder();
 
-    Console.WriteLine("Qual nick do jogador que ele irá receber os comandos? ");
-    string playerName = Console.ReadLine().Trim();
-    
-    string server = "jogar.gladmc.com";
-    int port = 25565;
+    builder.Services.AddDbContext<ChatDb>(opt => opt.UseInMemoryDatabase("Chat"));
+    builder.Services.AddDbContext<LogDb>(opt => opt.UseInMemoryDatabase("Log"));
+    builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
-    Bot bot = new Bot(username, server, port, playerName);
+    builder.Services.AddScoped<ChatService>();
+    builder.Services.AddScoped<LogService>();
 
-    Console.WriteLine(">>> Iniciando bot...");
-    bot.Start();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddOpenApiDocument(config =>
+    {
+      config.DocumentName = "BotAPI";
+      config.Title = "BotAPI v1";
+      config.Version = "v1";
+    });
 
-    Console.ReadLine();
+    WebApplication app = builder.Build();
+
+    if (app.Environment.IsDevelopment())
+    {
+      app.UseOpenApi();
+      app.UseSwaggerUi(config =>
+      {
+        config.DocumentTitle = "BotAPI";
+        config.Path = "/swagger";
+        config.DocumentPath = "/swagger/{documentName}/swagger.json";
+        config.DocExpansion = "list";
+      });
+    }
+
+    app.MapGet("/chat", ChatRoute.GetLastChat);
+    app.MapGet("/log", LogRoute.GetLastLog);
+    app.MapGet("bot/{id}", BotRoute.GetBotById);
+    app.MapPost("/start", BotRoute.StartBot);
+    app.MapPost("/chat", ChatRoute.AddChat);
+    app.MapPost("/command", CommandRoute.addComand);
+    app.MapDelete("/chat", ChatRoute.DeleteAllChat);
+
+    app.Run();
   }
 }

@@ -2,12 +2,20 @@ using Utils;
 using Features;
 using Core;
 using Network;
+using Models;
 
 namespace Protocol
 {
   public class PacketHandler
   {
-    private readonly ChatHandler chatHandler = new ChatHandler();
+    private readonly ChatHandler chatHandler;
+    private readonly LogService _logService;
+
+    public PacketHandler(LogService logService, ChatService chatService)
+    {
+      _logService = logService;
+      chatHandler = new ChatHandler(chatService, logService);
+    }
 
     public void Handle(int packetId, BinaryReader packetReader, Bot bot, State state, int compression, BinaryWriter writer)
     {
@@ -37,8 +45,7 @@ namespace Protocol
 
           bot.SetState(State.Play);
           bot.Logged = true;
-
-          Console.WriteLine($">>> [LOGIN 1.8] Logado como: {name}");
+          _ = _logService.AddMessage(new Log { Message = $">>> [LOGIN 1.8] Logado como: {name}" });
           break;
       }
     }
@@ -49,7 +56,7 @@ namespace Protocol
       {
         case 0x01: // Join Game
           bot.JoinCount++;
-          Console.WriteLine($">>> [MUNDO] Servidor #{bot.JoinCount} conectado.");
+          _ = _logService.AddMessage(new Log { Message = $">>> [MUNDO] Servidor #{bot.JoinCount} conectado." });
 
           if (bot.JoinCount == 2)
             bot.CompassUsed = false;
@@ -58,13 +65,11 @@ namespace Protocol
 
         case 0x2D: // Open Window (menu abriu)
           byte windowId = reader.ReadByte();
-          // Pula o resto do cabeçalho do Open Window (Inventory Type, Title, Slot Count, etc)
-          // Se não ler o resto, o próximo pacote no buffer ficará corrompido
           McString.ReadString(reader); // Pula o Title
           reader.ReadByte(); // Pula o Inventory Type
           reader.ReadByte(); // Pula o Slot Count
 
-          Console.WriteLine($">>> [MENU] Janela {windowId} aberta.");
+          _ = _logService.AddMessage(new Log { Message = $">>> [MENU] Janela {windowId} aberta." });
 
           if (bot.MenuHandled) return;
           bot.MenuHandled = true;
@@ -72,13 +77,13 @@ namespace Protocol
           _ = Task.Run(async () =>
           {
             await Task.Delay(1000);
-            Console.WriteLine($">>> [BOT] Iniciando varredura de slots...");
+            _ = _logService.AddMessage(new Log { Message = $">>> [BOT] Iniciando varredura de slots..." });
 
             for (short slot = 0; slot <= 1000; slot++)
             {
               if (bot.stopTryClickButton)
               {
-                Console.WriteLine(">>> [BOT] Parando cliques: Condição de parada atingida.");
+                _ = _logService.AddMessage(new Log { Message = ">>> [BOT] Parando cliques: Condição de parada atingida." });
                 break;
               }
 
@@ -86,7 +91,7 @@ namespace Protocol
               bot.ActionNumber++;
 
               InventoryActions.SendClickWindow(bot.GetWriter(), windowId, slot, compression, bot);
-              Console.WriteLine($"Clicando slot: {slot} | Action: {bot.ActionNumber}");
+              _ = _logService.AddMessage(new Log { Message = $"Clicando slot: {slot} | Action: {bot.ActionNumber}" });
 
               // Delay um pouco maior (75-100ms) é mais seguro contra AntiCheats de inventário
               await Task.Delay(75);
@@ -140,8 +145,7 @@ namespace Protocol
 
         case 0x02: // Chat Message
           string rawJson = McString.ReadString(reader);
-          // Chame apenas uma vez e guarde o resultado
-          string processedMessage = chatHandler.ListenChat(packetId, reader, bot, compression, writer, rawJson);
+          string processedMessage = chatHandler.HandlePacketChat(packetId, reader, bot, compression, writer, rawJson);
 
           if (processedMessage.Contains("Carregando seus dados..."))
           {

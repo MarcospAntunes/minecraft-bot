@@ -2,13 +2,15 @@ using Utils;
 using Protocol.Packets;
 using Network;
 using Protocol;
+using Features;
+using Models;
 
 namespace Core
 {
-  public class Bot
+  public class Bot(Guid Id, string username, string server, int port, string playerName, string password, LogService logService, ChatService chatService)
   {
     // Conexão
-    private Connection connection;
+    private Connection connection = new Connection(logService);
     private BinaryReader reader;
     private BinaryWriter writer;
 
@@ -26,27 +28,18 @@ namespace Core
     public double PosX, PosY, PosZ, Yaw, Pitch;
 
     // Dados
-    private string username;
-    public string playerName;
-    private string server;
-    private int port;
+    private string username = username;
+    public string playerName = playerName;
+    private string password = password;
+    private string server = server;
+    private int port = port;
     public bool CompassUsed = false;
     public short ActionNumber = 0;
     public int JoinCount = 0;
-
-    private PacketHandler handler;
-    
-
-    public Bot(string username, string server, int port, string playerName)
-    {
-      this.username = username;
-      this.server = server;
-      this.port = port;
-      this.playerName = playerName;
-
-      connection = new Connection();
-      handler = new PacketHandler();
-    }
+    public Guid Id = Id;
+    private PacketHandler handler = new PacketHandler(logService, chatService);
+    private readonly ChatHandler chatHandler = new ChatHandler(chatService, logService);
+    private readonly LogService _logService = logService;
 
     public void Start()
     {
@@ -55,6 +48,7 @@ namespace Core
       HandshakePacket.SendHandshake(writer, server, port, CompressionThreshold);
       LoginPacket.SendLoginStart(writer, username, CompressionThreshold, this);
 
+      Task.Run(() => chatHandler.StartChatPollingAsync(this, writer));
       Loop();
     }
 
@@ -79,15 +73,17 @@ namespace Core
         }
         catch (Exception ex)
         {
-          Console.WriteLine("Erro no Loop: " + ex.Message);
+          _ = _logService.AddMessage(new Log { Message = $"Erro no Loop: {ex.Message}" });
           break;
         }
       }
     }
 
-    // 🚀 Apenas métodos necessários
+    // Apenas métodos necessários
     public void SetState(State newState) => state = newState;
     public BinaryWriter GetWriter() => writer;
     public BinaryReader GetReader() => reader;
+    public string GetPassword() => password;
+    public State GetState() => state;
   }
 }
